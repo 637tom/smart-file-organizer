@@ -10,42 +10,48 @@ load_dotenv()
 api_key = os.getenv("GEMINI_API_KEY")
 client = genai.Client(api_key=api_key)
 
-def classify_file(file_path: Path):
-    suf = file_path.suffix.lower()
-    instruction = """TASK: Analyze the file and return a specific category name.
+def classify_files(files):
+    instruction = """TASK: Analyze the provided files in the exact order they are given.
+OUTPUT: Return ONLY a comma-separated list of categories.
 RULES:
-1. For PHOTOS: Describe the subject (e.g., VACATION, PORTRAITS, FOOD).
-2. For DOCUMENTS: Identify the context (e.g., UNIVERSITY, INVOICES, WORK).
+1. One category per file.
+2. For PHOTOS: Describe the subject (e.g., VACATION, PORTRAITS, FOOD).
 3. For PROGRAMMING: Identify the language or project (e.g., PYTHON, JAVASCRIPT).
-4. Return ONLY 1-2 words as the folder name.
-5. No special characters or dots."""
+3. For DOCUMENTS: Identify the context (e.g., UNIVERSITY, INVOICES, WORK).
+4. Max 2 words per category.
+5. Format example: VACATION, INVOICES, PYTHON, PORTRAITS
+6. No other text, no explanations."""
     contents = [instruction]
-
+    for i, file_path in enumerate(files):
+        suf = file_path.suffix.lower()
+        contents.append(f"--- FILE {i+1}: {file_path.name} ---")
+        try:
+            if suf == ".jpg" or suf == ".png":
+                im = Image.open(file_path)
+                im.thumbnail((512, 512))
+                contents.append(im)
+            elif suf == ".pdf":
+                reader = PdfReader(file_path)
+                text = reader.pages[0].extract_text()[:1500]
+                contents.append(text)
+            elif suf == ".docx":
+                d = Document(file_path)
+                text = "\n".join([p.text for p in d.paragraphs])
+                text = text[:1500]
+                contents.append(text)
+            elif suf in ['.txt', '.py', '.md', '.json', '.js', '.html', '.css', '.cpp', '.cs', '.java', '.rb', '.php', '.go', '.rs', '.swift', '.kt', '.kts', '.ts', '.tsx', '.jsx', '.scss', '.sass', '.less', '.styl', '.stylus', '.sass', '.less', '.styl', '.stylus']:
+                with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                    contents.append(f.read(1500))
+        except Exception as e:
+            print(f"ANALYSIS ERROR for {file_path.name}: {e}")
+            contents.append("UNCATEGORIZED")
     try:
-        if suf == ".jpg" or suf == ".png":
-            contents.append(Image.open(file_path))
-        elif suf == ".pdf":
-            reader = PdfReader(file_path)
-            text = reader.pages[0].extract_text()[:2000]
-            contents.append(text)
-        elif suf == ".docx":
-            contents.append(Document(file_path))
-        elif suf in ['.txt', '.py', '.md']:
-            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                contents.append(f"Text Content: {f.read(2000)}")
-        
-        contents.append(f"Filename: {file_path.name}")
-
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-2.0-flash",
             contents=contents
         )
-        print(response.text)
         return response.text.strip().upper()
 
     except Exception as e:
         print(f"ANALYSIS ERROR for {file_path.name}: {e}")
         return "UNCATEGORIZED"
-
-if __name__ == "__main__":
-    classify_file(Path('/Users/tomek/Nsync/ss/Screenshot 2024-11-11 at 15.50.42.png'))
