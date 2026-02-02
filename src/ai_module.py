@@ -50,7 +50,7 @@ RULES:
             model="gemini-2.0-flash",
             contents=contents
         )
-        return response.text.strip().upper()
+        return response.text.strip().lower()
 
     except Exception as e:
         print(f"ANALYSIS ERROR for {file_path.name}: {e}")
