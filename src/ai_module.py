@@ -12,15 +12,17 @@ client = genai.Client(api_key=api_key)
 
 def classify_files(files):
     instruction = """TASK: Analyze the provided files in the exact order they are given.
-OUTPUT: Return ONLY a comma-separated list of categories.
+OUTPUT: Return pairs in format CATEGORY|DESCRIPTION, separated by '^'.
 RULES:
-1. One category per file.
-2. For PHOTOS: Describe the subject (e.g., VACATION, PORTRAITS, FOOD).
+1. One CATEGORY|DESCRIPTION pair per file.
+2. For PHOTOS: Identify the subject (e.g., VACATION, PORTRAITS, FOOD).
 3. For PROGRAMMING: Identify the language or project (e.g., PYTHON, JAVASCRIPT).
-3. For DOCUMENTS: Identify the context (e.g., UNIVERSITY, INVOICES, WORK).
-4. Max 2 words per category.
-5. Format example: VACATION, INVOICES, PYTHON, PORTRAITS
-6. No other text, no explanations."""
+4. For DOCUMENTS: Identify the context (e.g., UNIVERSITY, INVOICES, WORK).
+5. DESCRIPTION: Brief summary of content (max 12 words).
+6. Use '|' to separate CATEGORY from DESCRIPTION.
+7. Use '^' to separate results for different files.
+8. Format example: VACATION|Sunset in Rome^INVOICES|Gas bill Jan 2024^PYTHON|Sorting script
+9. No other text, no explanations, no headers."""
     contents = [instruction]
     for i, file_path in enumerate(files):
         suf = file_path.suffix.lower()
