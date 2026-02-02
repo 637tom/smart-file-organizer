@@ -79,7 +79,7 @@ class FileOrganizer:
                 if item.is_file() and item.name != "README.md":
                     f.write(f"- {item.name}: {self.descriptions[item.name]}\n")
 
-    def dry_run_simulation(self, batch_size=5):
+    def organize(self, batch_size=5):
         folder = Path(self.target_path)
         files_paths = []
         categories = {}
@@ -91,7 +91,10 @@ class FileOrganizer:
         file_batches = self.batch(files_paths, batch_size)
 
         for i in range(len(file_batches)):
-            raw_text = classify_files(file_batches[i])
+            existing_categories = list(categories.keys())
+            raw_text = classify_files(file_batches[i], existing_categories)
+            if not "^" in raw_text:
+                raw_text = raw_text.replace("\n", "^")
             af_text = [category.strip() for category in raw_text.split("^")]
             given_categories = []
             given_descriptions = []
@@ -110,6 +113,7 @@ class FileOrganizer:
             print(f"\r Analyzing file {i*batch_size+1} of {len(files_paths)}", end="")
             if len(af_text) != len(file_batches[i]):
                 print("Error wrong number of categories")
+                print(f"Raw text: {raw_text}")
                 return
             for j, category in enumerate(given_categories):
                 if category not in categories:
@@ -135,6 +139,6 @@ if __name__ == "__main__":
     path_to_clean = "/Users/tomek/Nsync/Test Folder"
     try:
         organizer = FileOrganizer(Path(path_to_clean))
-        organizer.dry_run_simulation()
+        organizer.organize()
     except Exception as e:
         print(e)
