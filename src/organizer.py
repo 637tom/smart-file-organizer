@@ -4,8 +4,6 @@ from ai_module import classify_files
 class FileOrganizer:
     def __init__(self, target_path: Path):
         self.target_path = target_path
-        if not self.target_path.exists() or not self.target_path.is_dir():
-            raise ValueError(f"Error: {self.target_path} is not a directory.")
         self.history = []
         self.created_folders = []
         self.folders = []
@@ -81,6 +79,9 @@ class FileOrganizer:
 
     def organize(self, batch_size=5):
         folder = Path(self.target_path)
+        if not folder.exists() or not folder.is_dir():
+            print(f"Error: {folder} is not a directory.")
+            return
         files_paths = []
         categories = {}
 

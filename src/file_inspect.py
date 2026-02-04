@@ -2,6 +2,9 @@ from pathlib import Path
 from ai_module import describe_file
 
 def inspect_file(file_path : Path):
+    if not file_path.exists():
+        print("File not found")
+        return
     print(f"Filename: {file_path.name}")
     print(f"Suffix: {file_path.suffix}")
     print(f"Parent: {file_path.parent}")

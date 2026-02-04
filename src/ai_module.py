@@ -131,3 +131,55 @@ OUTPUT: MATH|Linear algebra matrices^%^PYTHON|Sorting algorithm script"""
     except Exception as e:
         print(f"ANALYSIS ERROR for {file_path.name}: {e}")
         return "UNCATEGORIZED"
+
+def find_best_file(files : list, query : str):
+    if(len(files) == 1):
+        return files[0]
+    instructions = """ROLE: Senior Search & Content Specialist.
+TASK: Compare the provided files and identify the single BEST match for the search query.
+
+STRICT RULES:
+1. OUTPUT: Return ONLY the exact file path of the winning file. 
+2. NO CHATTER: No headers, no "The best file is:", no markdown, no quotes. Just the raw path.
+3. CONTENT-DRIVEN: Use the provided text or image content to determine the match, not just the filename.
+4. NO MATCH: If no file matches the query well, return the path of the first file.
+
+The path you return must be identical to one of the paths provided in the "FILE X:" headers."""
+    contents = [instructions]
+    contents.append(f"Query: {query}")
+    for i, file_path in enumerate(files):
+        suf = file_path.suffix.lower()
+        contents.append(f"--- FILE {i+1}: {file_path} ---")
+        try:
+            if suf == ".jpg" or suf == ".png":
+                im = Image.open(file_path)
+                im.thumbnail((512, 512))
+                contents.append(im)
+            elif suf == ".pdf":
+                reader = PdfReader(file_path)
+                text = reader.pages[0].extract_text()[:1500]
+                contents.append(text)
+            elif suf == ".docx":
+                d = Document(file_path)
+                text = "\n".join([p.text for p in d.paragraphs])
+                text = text[:1500]
+                contents.append(text)
+            elif suf in ['.txt', '.py', '.md', '.json', '.js', '.html', '.css', '.cpp', '.cs', '.java', '.rb', '.php', '.go', '.rs', '.swift', '.kt', '.kts', '.ts', '.tsx', '.jsx', '.scss', '.sass', '.less', '.styl', '.stylus', '.sass', '.less', '.styl', '.stylus', '.in', '.out']:
+                with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                    contents.append(f.read(1500))
+            else:
+                contents.append("No content available for this file")
+        except Exception as e:
+            print(f"ANALYSIS ERROR for file {file_path.name}: {e}")
+            return None
+    try:
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=contents
+        )
+        return Path(response.text.strip())
+
+    except Exception as e:
+        print(f"ANALYSIS ERROR {e}")
+        return None
+    
