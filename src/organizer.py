@@ -93,9 +93,9 @@ class FileOrganizer:
         for i in range(len(file_batches)):
             existing_categories = list(categories.keys())
             raw_text = classify_files(file_batches[i], existing_categories)
-            if not "^" in raw_text:
-                raw_text = raw_text.replace("\n", "^")
-            af_text = [category.strip() for category in raw_text.split("^")]
+            if not "^%^" in raw_text:
+                raw_text = raw_text.replace("\n", "^%^")
+            af_text = [category.strip() for category in raw_text.split("^%^")]
             given_categories = []
             given_descriptions = []
 

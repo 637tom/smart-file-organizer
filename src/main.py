@@ -1,31 +1,41 @@
 import os
-from google import genai
-from dotenv import load_dotenv
+from pathlib import Path
+from organizer import FileOrganizer
+from file_inspect import inspect_file
 
-# Load configuration
-load_dotenv()
-api_key = os.getenv("GEMINI_API_KEY")
+def main():
+    if not os.path.exists(".env"):
+        print("Error: no .env file found")
+        return
 
-# Initialize Gemini Client
-client = genai.Client(api_key=api_key)
+    print("Type 'help' for list of commands")
 
-print("Starting connection test...")
+    default_path = Path.home()
 
-try:
-    # Execute test request
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents="System check: respond with 'Ready'"
-    )
-    
-    # Output results
-    print("--- CONNECTION TEST ---")
-    print(f"Status: SUCCESS")
-    print(f"Model output: {response.text.strip()}")
-    print("--- END ---")
+    while True:
+        command = input(">>> ").lower()
+        if command == "help":
+            print("Commands:")
+            print("organize - organize files")
+            print("inspect - inspect file")
+            print("exit - close program")
+        elif command == "exit":
+            print("Exiting...")
+            return
+        elif command == "organize":
+            path = input(f"Enter path to organize (default: {default_path}): ")
+            if path == "":
+                path = default_path
+            organizer = FileOrganizer(Path(path))
+            organizer.organize()
+        elif command == "inspect":
+            path = input(f"Enter path to inspect (default: {default_path}): ")
+            if path == "":
+                path = default_path
+            inspect_file(Path(path))
+        else:
+            print("Unknown command. Type 'help' for list of commands")
 
-except Exception as e:
-    print("--- CONNECTION TEST ---")
-    print(f"Status: FAILED")
-    print(f"Error details: {e}")
-    print("--- END ---")
+
+if __name__ == "__main__":
+    main()

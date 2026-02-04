@@ -10,6 +10,60 @@ load_dotenv()
 api_key = os.getenv("GEMINI_API_KEY")
 client = genai.Client(api_key=api_key)
 
+def describe_file(file_path : Path):
+    suf = file_path.suffix.lower()
+    contents = []
+
+    # Optimized promt for gemini 2.0 flash
+    instruction = """ROLE: Senior Content Analyst.
+TASK: Analyze the file and provide a concise summary of its content.
+
+RULES (STRICT):
+1. NO HEADERS: Do NOT use "Summary:", "Description:", or markdown titles (#).
+2. NO PREAMBLE: Start directly with the description. Do NOT use phrases like "This file contains..." or "Here is the analysis...".
+3. LANGUAGE: Strictly English.
+4. LENGTH: Max 60 words.
+5. STYLE: Professional, technical, and direct.
+
+SPECIFIC GUIDELINES:
+- IMAGES: Focus on key objects, text, and context.
+- DOCUMENTS: Identify type, dates, entities, and main subject.
+- CODE: Explain main logic and purpose.
+- UNKNOWN: If no content provided (only filename), state what the file likely represents based on its name/extension."""
+    contents.append(instruction)
+    contents.append(f"Filename: {file_path.name}")
+    try:
+        if suf == ".jpg" or suf == ".png":
+            im = Image.open(file_path)
+            im.thumbnail((512, 512))
+            contents.append(im)
+        elif suf == ".pdf":
+            reader = PdfReader(file_path)
+            text = reader.pages[0].extract_text()[:3000]
+            contents.append(text)
+        elif suf == ".docx":
+            d = Document(file_path)
+            text = "\n".join([p.text for p in d.paragraphs])
+            text = text[:3000]
+            contents.append(text)
+        elif suf in ['.txt', '.py', '.md', '.json', '.js', '.html', '.css', '.cpp', '.cs', '.java', '.rb', '.php', '.go', '.rs', '.swift', '.kt', '.kts', '.ts', '.tsx', '.jsx', '.scss', '.sass', '.less', '.styl', '.stylus', '.sass', '.less', '.styl', '.stylus', '.in', '.out']:
+            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                contents.append(f.read(3000))
+        else:
+            contents.append("No content available for this file")
+    except Exception as e:
+        print(f"ANALYSIS ERROR for {file_path.name}: {e}")
+        return "UNCATEGORIZED"
+    try:
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=contents
+        )
+        return response.text.strip().lower()
+    except Exception as e:
+        print(f"ANALYSIS ERROR for {file_path.name}: {e}")
+        return "UNCATEGORIZED"
+
 def classify_files(files : list, existing_categories : list):
     if len(existing_categories) > 0:
         existing_categories = ", ".join(existing_categories)
@@ -18,30 +72,27 @@ def classify_files(files : list, existing_categories : list):
 
     # Optimized promt for gemini 2.0 flash
     instruction = f"""ROLE: Senior Content Analyst & Organizer.
-TASK: Deeply analyze content of {len(files)} files and categorize them precisely.
+TASK: Analyze exactly {len(files)} files and categorize them.
 
 CONTEXT - EXISTING CATEGORIES: [{existing_categories}]
 
 BEST FIT PROTOCOL (Follow strictly):
-1. CONTENT FIRST: Analyze what the file *contains*, not just its format. A photo of a document is a DOCUMENT, not just PHOTOS.
-2. SPECIFIC OVER GENERIC: Avoid dumping distinct content into generic buckets like 'SCREENSHOTS' or 'MISC'.
-   - BAD: A screenshot of stock charts -> CATEGORY: SCREENSHOTS
-   - GOOD: A screenshot of stock charts -> CATEGORY: TRADING or FINANCE
-3. REUSE vs. CREATE:
-   - Check the EXISTING CATEGORIES list first. If a category fits the content well, USE IT.
-   - If the content is significantly different from existing categories, CREATE A NEW, SPECIFIC ONE. Do not be afraid to create new categories for distinct topics.
+1. CONTENT FIRST: Analyze content, not just format.
+2. SPECIFIC OVER GENERIC: Avoid 'MISC' or 'SCREENSHOTS'. Use topics like 'MATH', 'FINANCE', 'CODING'.
+3. REUSE vs. CREATE: Use existing categories if they fit; create new ones only for distinct new topics.
 
-RULES:
+RULES (MANDATORY):
 1. OUTPUT FORMAT: Exactly {len(files)} pairs in format: CATEGORY|DESCRIPTION
-2. SEPARATOR: Use '^' between pairs. No '^' at the end.
-3. CATEGORY NAMES: Single word, UPPERCASE, use underscores for spaces (e.g., WEB_DEV, UNIVERSITY_MATH).
+2. SEPARATOR: Use '^%^' between pairs. Do NOT put '^%^' at the end.
+3. CATEGORY NAMES: Single word, UPPERCASE.
 4. DESCRIPTION: Max 10 words summary.
+5. NO PREAMBLE: Do NOT write "Raw text:", "Here is the list", "Output:", or anything else. 
+6. NO MARKDOWN: Do not use code blocks (```). 
+7. START IMMEDIATELY: Your response must start with the first letter of the first category.
 
 EXAMPLE BEHAVIOR:
-(Input: image of python code, image of a cat, pdf invoice)
-(Existing buckets: PHOTOS)
-OUTPUT: PYTHON|Script with sorting algorithms^PHOTOS|A cute tabby cat^INVOICES|Electricity bill Jan 2024
-*(Notice: It reused PHOTOS for the cat, but created PYTHON and INVOICES because they were specific distinct content)*"""
+INPUT: file1.jpg (math), file2.py (code)
+OUTPUT: MATH|Linear algebra matrices^%^PYTHON|Sorting algorithm script"""
 
 
     contents = [instruction]
@@ -65,6 +116,8 @@ OUTPUT: PYTHON|Script with sorting algorithms^PHOTOS|A cute tabby cat^INVOICES|E
             elif suf in ['.txt', '.py', '.md', '.json', '.js', '.html', '.css', '.cpp', '.cs', '.java', '.rb', '.php', '.go', '.rs', '.swift', '.kt', '.kts', '.ts', '.tsx', '.jsx', '.scss', '.sass', '.less', '.styl', '.stylus', '.sass', '.less', '.styl', '.stylus', '.in', '.out']:
                 with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
                     contents.append(f.read(1500))
+            else:
+                contents.append("No content available for this file")
         except Exception as e:
             print(f"ANALYSIS ERROR for {file_path.name}: {e}")
             contents.append("UNCATEGORIZED")
