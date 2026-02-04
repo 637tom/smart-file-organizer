@@ -135,10 +135,3 @@ class FileOrganizer:
             self.undo_actions()
             return
 
-if __name__ == "__main__":
-    path_to_clean = "/Users/tomek/Nsync/Test Folder"
-    try:
-        organizer = FileOrganizer(Path(path_to_clean))
-        organizer.organize()
-    except Exception as e:
-        print(e)
